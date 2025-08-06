@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import classification_report, confusion_matrix
 from imblearn.over_sampling import SMOTE
-from xgboost import XGBClassifier
+from xgboost import XGBClassifier # type: ignore
 import joblib
 
 DB_PATH = "smart_transit.db"

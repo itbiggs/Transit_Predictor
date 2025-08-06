@@ -10,9 +10,21 @@ def time_to_minutes(t):
     except:
         return None
 
-def simulate_delay():
-    # 80% on time, 20% delayed by 6-15 minutes
-    return 0 if random.random() < 0.8 else random.randint(6, 15)
+def simulate_delay(hour, precipitation, wind_speed):
+    prob = 0.1  # Base delay rate
+    # Higher chance of delay during rush hours
+    if 7 <= hour <= 9 or 16 <= hour <= 18:
+        prob += 0.1
+    # More delays if it's raining or windy
+    if precipitation > 0:
+        prob += 0.1
+    if wind_speed > 20:
+        prob += 0.05
+
+    if random.random() < prob:
+        return random.randint(6, 15)
+    return 0
+
 
 def main():
     conn = sqlite3.connect("smart_transit.db")
@@ -26,9 +38,15 @@ def main():
         if scheduled is None:
             delays.append(None)
             continue
-        delay_minutes = simulate_delay()
+
+        hour = int(row['arrival_time'].split(":")[0])
+        precip = row.get('precipitation', 0)
+        wind = row.get('wind_speed', 0)
+
+        delay_minutes = simulate_delay(hour, precip, wind)
         delayed = 1 if delay_minutes > 5 else 0
         delays.append(delayed)
+
 
     df["delayed"] = delays
     df.to_sql("labeled_stop_times", conn, if_exists="replace", index=False)
