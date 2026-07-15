@@ -7,7 +7,7 @@ from xgboost import XGBClassifier # type: ignore
 import joblib
 
 DB_PATH = "smart_transit.db"
-TABLE = "labeled_with_weather"
+TABLE = "labeled_with_spatial"  # Updated to use spatial features
 MODEL_PATH = "xgb_model.pkl"
 
 
@@ -19,16 +19,35 @@ def load_data(db_path: str, table: str) -> pd.DataFrame:
 
 
 def preprocess(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+    """Preprocess data with spatial features for delay prediction"""
     df = df[df["arrival_time"].str.match(r"^\d{2}:\d{2}:\d{2}$", na=False)]
-    df["hour"] = df["arrival_time"].str.slice(0, 2).astype(int)
+    df["hour"] = df["arrival_time"].str.slice(0, 2).astype(int) % 24  # Handle 24+ hour times
     df = df[df["delayed"].isin([0, 1])]
     df["stop_sequence"] = pd.to_numeric(df["stop_sequence"], errors="coerce")
-    df["day_of_week"] = (df["hour"] // 4) % 7
-    df = pd.get_dummies(df, columns=["conditions"], drop_first=True)
-    top_stops = df["stop_id"].value_counts().nlargest(50).index
-    df = df[df["stop_id"].isin(top_stops)]
-    df = pd.get_dummies(df, columns=["stop_id"], drop_first=True)
 
+    # Use timestamp to get real day of week if available
+    if "timestamp" in df.columns:
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        df["day_of_week"] = df["timestamp"].dt.dayofweek
+    else:
+        # Fallback: distribute across week based on row index
+        df["day_of_week"] = df.index % 7
+
+    # One-hot encode categorical weather conditions
+    if "conditions" in df.columns:
+        df = pd.get_dummies(df, columns=["conditions"], drop_first=True)
+
+    # One-hot encode route_type if available
+    if "route_type" in df.columns:
+        df = pd.get_dummies(df, columns=["route_type"], drop_first=True, prefix="route_type")
+
+    # Limit stop_id to top 50 busiest stops and one-hot encode
+    if "stop_id" in df.columns:
+        top_stops = df["stop_id"].value_counts().nlargest(50).index
+        df = df[df["stop_id"].isin(top_stops)]
+        df = pd.get_dummies(df, columns=["stop_id"], drop_first=True)
+
+    # Drop non-feature columns
     drop_cols = [
         "arrival_time",
         "departure_time",
@@ -39,9 +58,22 @@ def preprocess(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
         "shape_dist_traveled",
         "icon",
         "timestamp",
+        "stop_lat",
+        "stop_lon",
+        "route_id",
+        "delay_minutes",  # Don't use actual delay as feature, only the binary label
     ]
-    X = df.drop(columns=[c for c in drop_cols if c in df.columns])
+    X = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
     y = df["delayed"]
+
+    print(f"\n=== Feature Engineering Summary ===")
+    print(f"Total samples after preprocessing: {len(X)}")
+    print(f"Total features: {len(X.columns)}")
+    spatial_features = [c for c in X.columns if c in ["distance_from_loop", "segment_length",
+                                                        "is_transfer_hub", "upstream_delay"]]
+    print(f"Spatial features: {spatial_features}")
+    print(f"Delay rate: {y.mean():.1%}\n")
+
     return X, y
 
 
