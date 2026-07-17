@@ -9,7 +9,7 @@ A geospatial machine learning pipeline that predicts transit delays for the Chic
 ### Spatial ML Pipeline
 - **Spatial features**: distance from Loop, upstream delay propagation, segment length, transfer hub detection
 - **Route-level modeling**: Delays propagate along trips based on prior stops
-- **Weather integration**: Hourly weather data from Visual Crossing API
+- **Seasonal weather integration**: Hourly weather data across full year from Visual Crossing API (Winter, Spring, Summer, Fall)
 - **XGBoost with SMOTE**: Handles class imbalance for better delay detection
 
 ### Interactive Visualization

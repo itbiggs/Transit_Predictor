@@ -214,12 +214,16 @@
                     const windSpeed = props.wind_speed ? `${props.wind_speed} km/h` : 'N/A';
                     const distance = props.distance_from_loop ? `${props.distance_from_loop} km` : 'N/A';
                     const transferHub = props.is_transfer_hub ? 'Yes' : 'No';
+                    const season = props.season || 'N/A';
+                    const date = props.date || 'N/A';
 
                     new maplibregl.Popup()
                         .setLngLat(coordinates)
                         .setHTML(`
                             <div class="popup-title">${props.stop_name}</div>
                             <div class="popup-row"><strong>Delay Probability:</strong> ${delayPercent}%</div>
+                            <div class="popup-row"><strong>Season:</strong> ${season}</div>
+                            <div class="popup-row"><strong>Sample Date:</strong> ${date}</div>
                             <div class="popup-row"><strong>Distance from Loop:</strong> ${distance}</div>
                             <div class="popup-row"><strong>Transfer Hub:</strong> ${transferHub}</div>
                             <div class="popup-row"><strong>Temperature:</strong> ${temp}</div>

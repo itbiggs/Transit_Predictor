@@ -7,6 +7,20 @@ from pathlib import Path
 MODEL_PATH = "xgb_model.pkl"
 OUTPUT_PATH = "predictions.geojson"
 
+def get_season(timestamp):
+    """Determine season from timestamp"""
+    if pd.isna(timestamp):
+        return None
+    month = timestamp.month
+    if month in [12, 1, 2]:
+        return "Winter"
+    elif month in [3, 4, 5]:
+        return "Spring"
+    elif month in [6, 7, 8]:
+        return "Summer"
+    else:
+        return "Fall"
+
 def preprocess_for_prediction(df: pd.DataFrame) -> pd.DataFrame:
     """Apply same preprocessing as training script"""
     df = df[df["arrival_time"].str.match(r"^\d{2}:\d{2}:\d{2}$", na=False)]
@@ -52,6 +66,8 @@ def main():
                     "distance_from_loop", "is_transfer_hub"]
     if "conditions" in df.columns:
         cols_to_keep.append("conditions")
+    if "timestamp" in df.columns:
+        cols_to_keep.append("timestamp")
     identifiers = df[cols_to_keep].copy()
 
     # Preprocess for prediction
@@ -78,14 +94,16 @@ def main():
     print("Aggregating predictions by stop and hour...")
     agg_dict = {
         "delay_probability": "mean",
-        "temp": "first",
-        "precip": "first",
-        "wind_speed": "first",
+        "temp": "mean",  # Average temp across dates for this hour
+        "precip": "mean",
+        "wind_speed": "mean",
         "distance_from_loop": "first",
         "is_transfer_hub": "first"
     }
     if "conditions" in result.columns:
-        agg_dict["conditions"] = lambda x: x.iloc[0] if len(x) > 0 else "Unknown"
+        agg_dict["conditions"] = lambda x: x.mode()[0] if len(x) > 0 else "Unknown"
+    if "timestamp" in result.columns:
+        agg_dict["timestamp"] = "first"  # Sample date for reference
 
     agg = result.groupby(["stop_id", "hour"]).agg(agg_dict).reset_index()
 
@@ -116,7 +134,9 @@ def main():
                 "wind_speed": round(float(row["wind_speed"]), 1) if pd.notna(row["wind_speed"]) else None,
                 "conditions": str(row["conditions"]) if "conditions" in row.index and pd.notna(row["conditions"]) else "Unknown",
                 "distance_from_loop": round(float(row["distance_from_loop"]), 2) if pd.notna(row["distance_from_loop"]) else None,
-                "is_transfer_hub": bool(row["is_transfer_hub"])
+                "is_transfer_hub": bool(row["is_transfer_hub"]),
+                "date": str(row["timestamp"].date()) if "timestamp" in row.index and pd.notna(row["timestamp"]) else None,
+                "season": get_season(row["timestamp"]) if "timestamp" in row.index and pd.notna(row["timestamp"]) else None
             }
         }
         features.append(feature)
