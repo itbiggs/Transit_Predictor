@@ -1,0 +1,104 @@
+{
+  "features": [
+    {
+      "feature": "route_avg_delay",
+      "importance": 0.3228174149990082
+    },
+    {
+      "feature": "stop_hour_avg_delay",
+      "importance": 0.11851552128791809
+    },
+    {
+      "feature": "is_transfer_hub",
+      "importance": 0.0806933268904686
+    },
+    {
+      "feature": "is_last_stop",
+      "importance": 0.06571077555418015
+    },
+    {
+      "feature": "rush_hour",
+      "importance": 0.05885900557041168
+    },
+    {
+      "feature": "is_weekend",
+      "importance": 0.05874644219875336
+    },
+    {
+      "feature": "is_first_stop",
+      "importance": 0.05532154068350792
+    },
+    {
+      "feature": "distance_from_loop",
+      "importance": 0.0368768535554409
+    },
+    {
+      "feature": "late_night",
+      "importance": 0.033508069813251495
+    },
+    {
+      "feature": "segment_length",
+      "importance": 0.03174604848027229
+    },
+    {
+      "feature": "hour",
+      "importance": 0.027806628495454788
+    },
+    {
+      "feature": "stop_sequence",
+      "importance": 0.02471720241010189
+    },
+    {
+      "feature": "stop_sequence_norm",
+      "importance": 0.022035593166947365
+    },
+    {
+      "feature": "upstream_delay",
+      "importance": 0.02101047895848751
+    },
+    {
+      "feature": "day_of_week",
+      "importance": 0.01697496511042118
+    },
+    {
+      "feature": "month",
+      "importance": 0.014190015383064747
+    },
+    {
+      "feature": "weekend_evening",
+      "importance": 0.010470127686858177
+    },
+    {
+      "feature": "cold_rush_hour",
+      "importance": 0.0
+    },
+    {
+      "feature": "rain_rush_hour",
+      "importance": 0.0
+    },
+    {
+      "feature": "extreme_weather",
+      "importance": 0.0
+    },
+    {
+      "feature": "wind_speed",
+      "importance": 0.0
+    },
+    {
+      "feature": "precip",
+      "importance": 0.0
+    },
+    {
+      "feature": "temp",
+      "importance": 0.0
+    }
+  ],
+  "auc_score": 0.6941597561275906,
+  "best_params": {
+    "learning_rate": 0.3,
+    "max_depth": 7,
+    "min_child_weight": 1,
+    "n_estimators": 200,
+    "subsample": 1.0
+  }
+}

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTA Transit Delay Predictions - Advanced ML Dashboard</title>
+    <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f5f5f5;
+        }
+
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1;
+            max-width: 350px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .control-section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        select, input[type="date"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .value-display {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: #0066cc;
+            margin-top: 5px;
+        }
+
+        .legend {
+            margin-top: 10px;
+        }
+
+        .legend-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .legend-color {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 1px solid #999;
+        }
+
+        .stats {
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        #featureChart {
+            margin-top: 15px;
+            max-height: 200px;
+        }
+
+        .maplibregl-popup-content {
+            padding: 12px;
+            max-width: 280px;
+        }
+
+        .popup-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .popup-row {
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .popup-row strong {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .ml-badge {
+            display: inline-block;
+            background: #0066cc;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="controls">
+        <h1>CTA Delay Predictions <span class="ml-badge">ML</span></h1>
+
+        <div class="control-section">
+            <label for="dateSelect">Select Date:</label>
+            <select id="dateSelect">
+                <option value="">Loading dates...</option>
+            </select>
+        </div>
+
+        <div class="control-section">
+            <label for="hourSlider">Hour of Day:</label>
+            <input type="range" id="hourSlider" min="0" max="23" value="8" step="1">
+            <div class="value-display" id="hourDisplay">8:00 AM</div>
+        </div>
+
+        <div class="control-section stats">
+            <div class="stat-row">
+                <span class="stat-label">All CTA Rail Stops:</span>
+                <span class="stat-value" id="stopCount">298</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Model AUC:</span>
+                <span class="stat-value" id="modelAUC">0.694</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Features:</span>
+                <span class="stat-value">23</span>
+            </div>
+        </div>
+
+        <div class="control-section">
+            <div class="legend-title">Top ML Features</div>
+            <canvas id="featureChart"></canvas>
+        </div>
+
+        <div class="control-section legend">
+            <div class="legend-title">Delay Probability</div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #22c55e;"></div>
+                <span>Low (0-20%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #fbbf24;"></div>
+                <span>Medium (20-40%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #f97316;"></div>
+                <span>High (40-60%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ef4444;"></div>
+                <span>Very High (60%+)</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CHICAGO_CENTER = [-87.6298, 41.8781];
+        let map, geojsonData, featureImportance;
+        let currentHour = 8;
+        let currentDate = null;
+        let featureChart;
+
+        // Initialize map
+        map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+            center: CHICAGO_CENTER,
+            zoom: 11
+        });
+
+        // Load feature importance
+        fetch('predictions/feature_importance.json')
+            .then(response => response.json())
+            .then(data => {
+                featureImportance = data;
+                document.getElementById('modelAUC').textContent = data.auc_score.toFixed(3);
+                createFeatureChart();
+            })
+            .catch(err => console.log('Feature importance not available'));
+
+        // Load GeoJSON data
+        fetch('predictions/predictions_multidate.geojson')
+            .then(response => response.json())
+            .then(data => {
+                geojsonData = data;
+
+                // Populate date selector
+                const dates = [...new Set(data.features.map(f => f.properties.date))].sort();
+                const dateSelect = document.getElementById('dateSelect');
+                dateSelect.innerHTML = dates.map(d =>
+                    `<option value="${d}">${d}</option>`
+                ).join('');
+                currentDate = dates[0];
+                dateSelect.value = currentDate;
+
+                initializeMap();
+            })
+            .catch(error => {
+                console.error('Error loading GeoJSON:', error);
+                alert('Failed to load prediction data.');
+            });
+
+        function initializeMap() {
+            map.on('load', () => {
+                map.addSource('predictions', {
+                    type: 'geojson',
+                    data: filterData()
+                });
+
+                map.addLayer({
+                    id: 'predictions-layer',
+                    type: 'circle',
+                    source: 'predictions',
+                    paint: {
+                        'circle-radius': [
+                            'interpolate', ['linear'],
+                            ['get', 'delay_probability'],
+                            0, 4,
+                            0.5, 8,
+                            1, 12
+                        ],
+                        'circle-color': [
+                            'step',
+                            ['get', 'delay_probability'],
+                            '#22c55e', 0.2,
+                            '#fbbf24', 0.4,
+                            '#f97316', 0.6,
+                            '#ef4444'
+                        ],
+                        'circle-opacity': 0.7,
+                        'circle-stroke-width': 1,
+                        'circle-stroke-color': '#fff'
+                    }
+                });
+
+                // Click popup
+                map.on('click', 'predictions-layer', (e) => {
+                    const props = e.properties;
+                    const coords = e.features[0].geometry.coordinates.slice();
+
+                    new maplibregl.Popup()
+                        .setLngLat(coords)
+                        .setHTML(`
+                            <div class="popup-title">${props.stop_name}</div>
+                            <div class="popup-row"><strong>Delay Probability:</strong> ${(props.delay_probability * 100).toFixed(1)}%</div>
+                            <div class="popup-row"><strong>Date:</strong> ${props.date}</div>
+                            <div class="popup-row"><strong>Season:</strong> ${props.season || 'N/A'}</div>
+                            <div class="popup-row"><strong>Distance from Loop:</strong> ${props.distance_from_loop?.toFixed(2) || 'N/A'} km</div>
+                            <div class="popup-row"><strong>Transfer Hub:</strong> ${props.is_transfer_hub ? 'Yes' : 'No'}</div>
+                            <div class="popup-row"><strong>Temperature:</strong> ${props.temp?.toFixed(1) || 'N/A'}°F</div>
+                            <div class="popup-row"><strong>Precipitation:</strong> ${props.precip?.toFixed(2) || 0} mm</div>
+                        `)
+                        .addTo(map);
+                });
+
+                map.on('mouseenter', 'predictions-layer', () => {
+                    map.getCanvas().style.cursor = 'pointer';
+                });
+
+                map.on('mouseleave', 'predictions-layer', () => {
+                    map.getCanvas().style.cursor = '';
+                });
+            });
+        }
+
+        function filterData() {
+            return {
+                type: 'FeatureCollection',
+                features: geojsonData.features.filter(f =>
+                    f.properties.hour === currentHour &&
+                    f.properties.date === currentDate
+                )
+            };
+        }
+
+        function updateMap() {
+            if (map.getSource('predictions')) {
+                map.getSource('predictions').setData(filterData());
+            }
+        }
+
+        // Hour slider
+        document.getElementById('hourSlider').addEventListener('input', (e) => {
+            currentHour = parseInt(e.target.value);
+            const displayHour = currentHour === 0 ? 12 : (currentHour > 12 ? currentHour - 12 : currentHour);
+            const period = currentHour < 12 ? 'AM' : 'PM';
+            document.getElementById('hourDisplay').textContent = `${displayHour}:00 ${period}`;
+            updateMap();
+        });
+
+        // Date selector
+        document.getElementById('dateSelect').addEventListener('change', (e) => {
+            currentDate = e.target.value;
+            updateMap();
+        });
+
+        // Feature importance chart
+        function createFeatureChart() {
+            if (!featureImportance) return;
+
+            const top10 = featureImportance.features.slice(0, 10);
+            const ctx = document.getElementById('featureChart').getContext('2d');
+
+            featureChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: top10.map(f => f.feature.replace(/_/g, ' ')),
+                    datasets: [{
+                        label: 'Importance',
+                        data: top10.map(f => f.importance),
+                        backgroundColor: '#0066cc',
+                        borderColor: '#0052a3',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 9 } }
+                        },
+                        y: {
+                            ticks: { font: { size: 9 } }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
