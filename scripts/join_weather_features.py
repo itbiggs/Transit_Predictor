@@ -32,7 +32,9 @@ sample_timestamps = np.random.choice(unique_timestamps, min(50, len(unique_times
 weather_cache = {}
 print(f"Fetching weather for {len(sample_timestamps)} unique timestamps...")
 for i, ts in enumerate(sample_timestamps):
-    weather = fetch_weather("chicago", ts)
+    # Convert numpy.datetime64 to pandas Timestamp then to Python datetime
+    ts_dt = pd.Timestamp(ts).to_pydatetime()
+    weather = fetch_weather("chicago", ts_dt)
     if weather:
         weather_cache[ts] = weather
         if (i + 1) % 10 == 0:
@@ -43,13 +45,15 @@ for i, ts in enumerate(sample_timestamps):
 # Map weather to all rows (use nearest timestamp from cache)
 def get_nearest_weather(timestamp):
     """Find cached weather for nearest timestamp"""
+    # Convert to pandas Timestamp for comparison
+    ts = pd.Timestamp(timestamp)
     if timestamp in weather_cache:
         return weather_cache[timestamp]
     # Find nearest cached timestamp
     cached_times = list(weather_cache.keys())
     if not cached_times:
         return None
-    nearest = min(cached_times, key=lambda t: abs((t - timestamp).total_seconds()))
+    nearest = min(cached_times, key=lambda t: abs((pd.Timestamp(t) - ts).total_seconds()))
     return weather_cache[nearest]
 
 print("Mapping weather to all records...")

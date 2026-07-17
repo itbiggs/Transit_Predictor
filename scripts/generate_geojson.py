@@ -135,8 +135,8 @@ def main():
                 "conditions": str(row["conditions"]) if "conditions" in row.index and pd.notna(row["conditions"]) else "Unknown",
                 "distance_from_loop": round(float(row["distance_from_loop"]), 2) if pd.notna(row["distance_from_loop"]) else None,
                 "is_transfer_hub": bool(row["is_transfer_hub"]),
-                "date": str(row["timestamp"].date()) if "timestamp" in row.index and pd.notna(row["timestamp"]) else None,
-                "season": get_season(row["timestamp"]) if "timestamp" in row.index and pd.notna(row["timestamp"]) else None
+                "date": str(pd.Timestamp(row["timestamp"]).date()) if "timestamp" in row.index and pd.notna(row["timestamp"]) else None,
+                "season": get_season(pd.Timestamp(row["timestamp"])) if "timestamp" in row.index and pd.notna(row["timestamp"]) else None
             }
         }
         features.append(feature)
