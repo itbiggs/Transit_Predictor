@@ -185,7 +185,7 @@
 
         <div class="control-section">
             <label for="hourSlider">Hour of Day:</label>
-            <input type="range" id="hourSlider" min="0" max="23" value="8" step="1">
+            <input type="range" id="hourSlider" min="0" max="8" value="3" step="1">
             <div class="value-display" id="hourDisplay">8:00 AM</div>
         </div>
 
@@ -257,12 +257,19 @@
 
         // Load GeoJSON data
         fetch('predictions/predictions_multidate.geojson')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 geojsonData = data;
 
-                // Populate date selector
-                const dates = [...new Set(data.features.map(f => f.properties.date))].sort();
+                // Populate date selector with months in chronological order
+                const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June',
+                                   'July', 'August', 'September', 'October', 'November', 'December'];
+                const dates = data.dates || monthOrder;
                 const dateSelect = document.getElementById('dateSelect');
                 dateSelect.innerHTML = dates.map(d =>
                     `<option value="${d}">${d}</option>`
@@ -274,7 +281,9 @@
             })
             .catch(error => {
                 console.error('Error loading GeoJSON:', error);
-                alert('Failed to load prediction data.');
+                const dateSelect = document.getElementById('dateSelect');
+                dateSelect.innerHTML = '<option value="">Error loading data - check console</option>';
+                alert('Failed to load prediction data. Check the browser console for details.');
             });
 
         function initializeMap() {
@@ -356,9 +365,11 @@
             }
         }
 
-        // Hour slider
+        // Hour slider - map to available hours
+        const availableHours = [0, 3, 6, 8, 12, 15, 17, 20, 23];
         document.getElementById('hourSlider').addEventListener('input', (e) => {
-            currentHour = parseInt(e.target.value);
+            const sliderPos = parseInt(e.target.value);
+            currentHour = availableHours[sliderPos];
             const displayHour = currentHour === 0 ? 12 : (currentHour > 12 ? currentHour - 12 : currentHour);
             const period = currentHour < 12 ? 'AM' : 'PM';
             document.getElementById('hourDisplay').textContent = `${displayHour}:00 ${period}`;
